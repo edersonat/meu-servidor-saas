@@ -6,9 +6,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { criarApp } = require('../src/app');
 
-async function iniciar(t) {
+async function iniciar(t, opcoes = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'caixa-teste-'));
-  const servidor = criarApp({ dataDir, adminPin: '9999', segredo: 'segredo-de-teste' });
+  const servidor = criarApp({ dataDir, adminPin: '9999', segredo: 'segredo-de-teste', confiarProxy: false, ...opcoes });
   await new Promise((ok) => servidor.listen(0, '127.0.0.1', ok));
   t.after(() => {
     servidor.close();
@@ -16,10 +16,14 @@ async function iniciar(t) {
   });
   const base = `http://127.0.0.1:${servidor.address().port}`;
 
-  return async function chamar(metodo, url, { corpo, token } = {}) {
+  return async function chamar(metodo, url, { corpo, token, ip } = {}) {
     const res = await fetch(base + url, {
       method: metodo,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(ip ? { 'X-Real-IP': ip } : {}),
+      },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
     });
     return { status: res.status, dados: await res.json().catch(() => null) };
@@ -125,4 +129,45 @@ test('trava o login depois de muitas tentativas erradas', async (t) => {
   const chamar = await iniciar(t);
   for (let i = 0; i < 8; i++) await chamar('POST', '/api/login', { corpo: { papel: 'admin', pin: '0000' } });
   assert.equal((await chamar('POST', '/api/login', { corpo: { papel: 'admin', pin: '9999' } })).status, 429);
+});
+
+test('rota de saúde pro healthcheck do Railway', async (t) => {
+  const chamar = await iniciar(t);
+  assert.deepEqual(await chamar('GET', '/api/saude'), { status: 200, dados: { ok: true } });
+});
+
+test('sem proxy confiável, o cabeçalho X-Real-IP é ignorado', async (t) => {
+  const chamar = await iniciar(t);
+  for (let i = 0; i < 8; i++) {
+    await chamar('POST', '/api/login', { ip: `10.0.0.${i}`, corpo: { papel: 'admin', pin: '0000' } });
+  }
+  assert.equal((await chamar('POST', '/api/login', { ip: '10.0.0.99', corpo: { papel: 'admin', pin: '9999' } })).status, 429);
+});
+
+test('atrás do proxy, a trava por IP usa o IP real de quem acessa', async (t) => {
+  const chamar = await iniciar(t, { confiarProxy: true });
+  for (let i = 0; i < 8; i++) await chamar('POST', '/api/login', { ip: '1.1.1.1', corpo: { papel: 'admin', pin: '0000' } });
+  assert.equal((await chamar('POST', '/api/login', { ip: '1.1.1.1', corpo: { papel: 'admin', pin: '9999' } })).status, 429);
+  assert.equal((await chamar('POST', '/api/login', { ip: '2.2.2.2', corpo: { papel: 'admin', pin: '9999' } })).status, 200);
+});
+
+test('trocar de IP não adianta: a conta trava depois de 20 PINs errados', async (t) => {
+  const chamar = await iniciar(t, { confiarProxy: true });
+  const admin = (await chamar('POST', '/api/login', { corpo: { papel: 'admin', pin: '9999' } })).dados.token;
+  const ana = (await chamar('POST', '/api/admin/barbeiros', { token: admin, corpo: { nome: 'Ana', comissao: 50, pin: '1111' } })).dados;
+  const bruno = (await chamar('POST', '/api/admin/barbeiros', { token: admin, corpo: { nome: 'Bruno', comissao: 50, pin: '2222' } })).dados;
+
+  for (let i = 0; i < 20; i++) {
+    await chamar('POST', '/api/login', { ip: `9.9.9.${i}`, corpo: { papel: 'barbeiro', barbeiro_id: ana.id, pin: '0000' } });
+  }
+  const login = (id, pin) => chamar('POST', '/api/login', { ip: '8.8.8.8', corpo: { papel: 'barbeiro', barbeiro_id: id, pin } });
+  assert.equal((await login(ana.id, '1111')).status, 429, 'conta da Ana travada');
+  assert.equal((await login(bruno.id, '2222')).status, 200, 'outras contas seguem normais');
+});
+
+test('lista de atendimentos informa o dia atual (pra virada de dia na tela)', async (t) => {
+  const chamar = await iniciar(t);
+  const admin = (await chamar('POST', '/api/login', { corpo: { papel: 'admin', pin: '9999' } })).dados.token;
+  const r = await chamar('GET', '/api/admin/atendimentos', { token: admin });
+  assert.match(r.dados.hoje, /^\d{4}-\d{2}-\d{2}$/);
 });

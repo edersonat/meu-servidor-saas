@@ -98,6 +98,46 @@ function esc(texto) {
   })[c]);
 }
 
+// ---------- atualização automática ----------
+
+const INTERVALO_ATUALIZACAO_MS = 30 * 1000;
+
+/** Mostra no topo se a tela está em dia com o servidor. */
+function marcarAoVivo(ok) {
+  const el = document.getElementById('ao-vivo');
+  if (!el) return;
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  el.classList.toggle('offline', !ok);
+  el.querySelector('.texto').textContent = ok ? `Atualizado ${hora}` : 'Sem conexão';
+  el.title = ok
+    ? 'Os números se atualizam sozinhos a cada 30 segundos.'
+    : 'Não deu pra falar com o servidor. Tentando de novo em 30 segundos.';
+}
+
+/**
+ * Roda `recarregar` a cada 30 s enquanto a tela está visível e logo que o
+ * usuário volta pra ela (ex.: desbloqueou o celular). Falhas não viram aviso
+ * na tela, só o indicador muda pra "Sem conexão".
+ */
+function atualizarSozinho(recarregar) {
+  let rodando = false;
+  async function rodar() {
+    if (rodando || document.visibilityState !== 'visible') return;
+    rodando = true;
+    try {
+      await recarregar();
+      marcarAoVivo(true);
+    } catch {
+      marcarAoVivo(false);
+    } finally {
+      rodando = false;
+    }
+  }
+  setInterval(rodar, INTERVALO_ATUALIZACAO_MS);
+  document.addEventListener('visibilitychange', rodar);
+  window.addEventListener('online', rodar);
+}
+
 // ---------- componentes ----------
 
 let temporizadorToast;

@@ -64,10 +64,20 @@ async function iniciar() {
 
   const consultaPeriodo = () => `inicio=${estado.periodo.inicio}&fim=${estado.periodo.fim}`;
 
+  /** Se virou o dia com o painel aberto, os períodos rápidos andam junto. Retorna true se mudou o período. */
+  function ajustarHoje(hoje) {
+    if (!hoje || hoje === estado.config.hoje) return false;
+    estado.config.hoje = hoje;
+    if (estado.periodo.chave === 'custom') return false;
+    Object.assign(estado.periodo, periodoRapido(estado.periodo.chave, hoje));
+    return true;
+  }
+
   // ----- visão geral -----
 
   async function carregarVisao() {
-    const { resumo: r, periodo } = await api('GET', `/api/admin/resumo?${consultaPeriodo()}`);
+    const { resumo: r, periodo, hoje } = await api('GET', `/api/admin/resumo?${consultaPeriodo()}`);
+    if (ajustarHoje(hoje)) return carregarVisao();
     $('periodo-texto').textContent = descreverPeriodo(periodo);
 
     $('kpis').innerHTML = [
@@ -143,20 +153,24 @@ async function iniciar() {
 
   function preencherSelectsDeBarbeiro() {
     const opcoes = estado.barbeiros.map((b) => `<option value="${b.id}">${esc(b.nome)}</option>`).join('');
-    formLancar.elements.barbeiro_id.innerHTML = '<option value="">Escolha…</option>' + opcoes;
-    const filtro = $('filtro-barbeiro');
-    const atual = filtro.value;
-    filtro.innerHTML = '<option value="">Todos os barbeiros</option>' + opcoes;
-    filtro.value = estado.barbeiros.some((b) => String(b.id) === atual) ? atual : '';
+    // Mantém o que estava escolhido (a lista é refeita a cada atualização automática).
+    const recarregarSelect = (select, primeira) => {
+      const atual = select.value;
+      select.innerHTML = primeira + opcoes;
+      select.value = estado.barbeiros.some((b) => String(b.id) === atual) ? atual : '';
+    };
+    recarregarSelect(formLancar.elements.barbeiro_id, '<option value="">Escolha…</option>');
+    recarregarSelect($('filtro-barbeiro'), '<option value="">Todos os barbeiros</option>');
   }
 
   $('filtro-barbeiro').addEventListener('change', () => carregarAtendimentos().catch((e) => avisar(e.message, 'falha')));
 
   async function carregarAtendimentos() {
     const filtro = $('filtro-barbeiro').value;
-    const { atendimentos, periodo } = await api(
+    const { atendimentos, periodo, hoje } = await api(
       'GET', `/api/admin/atendimentos?${consultaPeriodo()}${filtro ? `&barbeiro_id=${filtro}` : ''}`,
     );
+    if (ajustarHoje(hoje)) return carregarAtendimentos();
     $('periodo-texto').textContent = descreverPeriodo(periodo);
     $('tabela-atendimentos').innerHTML = atendimentos.length
       ? atendimentos.map((a) => `
@@ -270,11 +284,16 @@ async function iniciar() {
 
   // ----- carregamento -----
 
+  async function recarregarAbaAtual() {
+    if (estado.aba === 'visao') await carregarVisao();
+    if (estado.aba === 'atendimentos') await carregarAtendimentos();
+    if (estado.aba === 'barbeiros') await carregarBarbeiros();
+  }
+
   async function atualizar() {
     try {
-      if (estado.aba === 'visao') await carregarVisao();
-      if (estado.aba === 'atendimentos') await carregarAtendimentos();
-      if (estado.aba === 'barbeiros') await carregarBarbeiros();
+      await recarregarAbaAtual();
+      marcarAoVivo(true);
     } catch (e) {
       avisar(e.message, 'falha');
     }
@@ -282,4 +301,5 @@ async function iniciar() {
 
   await carregarBarbeiros().catch((e) => avisar(e.message, 'falha'));
   await atualizar();
+  atualizarSozinho(recarregarAbaAtual);
 }

@@ -54,6 +54,14 @@ p { margin: 0; }
   background: var(--acento); color: var(--acento-texto); font-size: 1.25rem; font-weight: 700;
 }
 
+/* indicador "ao vivo" */
+.ao-vivo { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--texto-2); white-space: nowrap; }
+.ao-vivo .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgb(79 209 139 / 0.6); animation: pulso 2s infinite; }
+.ao-vivo.offline .ponto { background: var(--perigo); animation: none; }
+@keyframes pulso { 70% { box-shadow: 0 0 0 6px rgb(79 209 139 / 0); } 100% { box-shadow: 0 0 0 0 rgb(79 209 139 / 0); } }
+@media (prefers-reduced-motion: reduce) { .ao-vivo .ponto { animation: none; } }
+@media (max-width: 420px) { .ao-vivo .texto { display: none; } }
+
 /* ---------- cartões ---------- */
 .card {
   background: var(--superficie);

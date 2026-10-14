@@ -103,15 +103,22 @@ async function iniciar() {
   });
 
   async function carregarResumo() {
-    const p = periodoRapido(estado.periodo, estado.config.hoje);
-    let dados;
     try {
-      dados = await api('GET', `/api/eu/resumo?inicio=${p.inicio}&fim=${p.fim}`);
+      await buscarResumo();
+      marcarAoVivo(true);
     } catch (e) {
       avisar(e.message, 'falha');
-      return;
     }
-    estado.config.hoje = dados.hoje;
+  }
+
+  async function buscarResumo() {
+    const p = periodoRapido(estado.periodo, estado.config.hoje);
+    const dados = await api('GET', `/api/eu/resumo?inicio=${p.inicio}&fim=${p.fim}`);
+    if (dados.hoje !== estado.config.hoje) {
+      // Virou o dia com a tela aberta: refaz o período ("Hoje" passa a ser o novo dia).
+      estado.config.hoje = dados.hoje;
+      return buscarResumo();
+    }
     const r = dados.resumo;
 
     document.getElementById('periodo-texto').textContent = descreverPeriodo(dados.periodo);
@@ -156,4 +163,5 @@ async function iniciar() {
   });
 
   await carregarResumo();
+  atualizarSozinho(buscarResumo);
 }

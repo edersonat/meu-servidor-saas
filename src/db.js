@@ -123,6 +123,10 @@ function abrirBanco(arquivo) {
         : st.atendimentosPeriodo.all(inicio, fim);
     },
 
+    saude() {
+      return db.prepare('SELECT 1 AS ok').get().ok === 1;
+    },
+
     fechar() {
       db.close();
     },

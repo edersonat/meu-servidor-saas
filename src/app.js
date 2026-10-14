@@ -138,6 +138,8 @@ function servirEstatico(req, res, caminho) {
       'Content-Type': MIME[path.extname(arquivo)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
     });
     res.end(req.method === 'HEAD' ? undefined : conteudo);
   });
@@ -149,11 +151,13 @@ function criarApp(opcoes = {}) {
   const dataDir = opcoes.dataDir || config.DATA_DIR;
   const tz = opcoes.tz || config.TZ;
   const adminPin = String(opcoes.adminPin || config.ADMIN_PIN);
+  const confiarProxy = opcoes.confiarProxy ?? config.CONFIAR_PROXY;
   fs.mkdirSync(dataDir, { recursive: true });
 
   const db = abrirBanco(opcoes.arquivoBanco || path.join(dataDir, 'barbearia.db'));
   const segredo = opcoes.segredo || auth.carregarSegredo(dataDir);
-  const limitador = auth.criarLimitadorLogin();
+  const limitadorIp = auth.criarLimitadorLogin(auth.MAX_TENTATIVAS_IP);
+  const limitadorConta = auth.criarLimitadorLogin(auth.MAX_TENTATIVAS_CONTA);
   const hoje = () => datas.agora(tz).data;
 
   const rotas = [];
@@ -173,6 +177,12 @@ function criarApp(opcoes = {}) {
     if (inicio > fim) throw new ErroHttp(400, 'A data inicial é depois da final.');
     if (datas.tamanhoPeriodo(inicio, fim) > MAX_PERIODO_DIAS) throw new ErroHttp(400, 'Período máximo é de 1 ano.');
     return { inicio, fim };
+  }
+
+  function ipDoCliente(req) {
+    const real = req.headers['x-real-ip'];
+    if (confiarProxy && typeof real === 'string' && real.trim()) return real.trim();
+    return req.socket.remoteAddress || 'desconhecido';
   }
 
   function barbeiroAtivo(id) {
@@ -205,6 +215,8 @@ function criarApp(opcoes = {}) {
 
   // ----- públicas -----
 
+  rota('GET', '/api/saude', null, () => ({ ok: db.saude() }));
+
   rota('GET', '/api/config', null, () => ({
     nome_barbearia: config.NOME_BARBEARIA,
     hoje: hoje(),
@@ -215,34 +227,37 @@ function criarApp(opcoes = {}) {
   rota('GET', '/api/barbeiros', null, () => db.listarBarbeiros().map((b) => ({ id: b.id, nome: b.nome })));
 
   rota('POST', '/api/login', null, ({ corpo, req }) => {
-    const ip = req.socket.remoteAddress || 'desconhecido';
-    if (limitador.bloqueado(ip)) throw new ErroHttp(429, 'Muitas tentativas erradas. Espere 15 minutos.');
+    if (corpo.papel !== 'admin' && corpo.papel !== 'barbeiro') throw new ErroHttp(400, 'Tipo de acesso inválido.');
+    const ip = ipDoCliente(req);
+    const conta = corpo.papel === 'admin' ? 'admin' : `barbeiro:${Number(corpo.barbeiro_id)}`;
+    if (limitadorIp.bloqueado(ip) || limitadorConta.bloqueado(conta)) {
+      throw new ErroHttp(429, 'Muitas tentativas erradas. Espere 15 minutos.');
+    }
     const pin = String(corpo.pin ?? '');
+    const falhou = (mensagem) => {
+      limitadorIp.falhou(ip);
+      limitadorConta.falhou(conta);
+      return new ErroHttp(401, mensagem);
+    };
+    const acertou = () => {
+      limitadorIp.acertou(ip);
+      limitadorConta.acertou(conta);
+    };
 
     if (corpo.papel === 'admin') {
-      if (!auth.compararSeguro(pin, adminPin)) {
-        limitador.falhou(ip);
-        throw new ErroHttp(401, 'PIN incorreto.');
-      }
-      limitador.acertou(ip);
+      if (!auth.compararSeguro(pin, adminPin)) throw falhou('PIN incorreto.');
+      acertou();
       return { papel: 'admin', token: auth.criarToken({ papel: 'admin' }, segredo) };
     }
 
-    if (corpo.papel === 'barbeiro') {
-      const b = db.buscarBarbeiro(Number(corpo.barbeiro_id));
-      if (!b || !b.ativo || !auth.conferirPin(pin, b.pin_hash)) {
-        limitador.falhou(ip);
-        throw new ErroHttp(401, 'Barbeiro ou PIN incorreto.');
-      }
-      limitador.acertou(ip);
-      return {
-        papel: 'barbeiro',
-        barbeiro: barbeiroPublico(b),
-        token: auth.criarToken({ papel: 'barbeiro', id: b.id, pv: b.pin_hash.slice(0, 12) }, segredo),
-      };
-    }
-
-    throw new ErroHttp(400, 'Tipo de acesso inválido.');
+    const b = db.buscarBarbeiro(Number(corpo.barbeiro_id));
+    if (!b || !b.ativo || !auth.conferirPin(pin, b.pin_hash)) throw falhou('Barbeiro ou PIN incorreto.');
+    acertou();
+    return {
+      papel: 'barbeiro',
+      barbeiro: barbeiroPublico(b),
+      token: auth.criarToken({ papel: 'barbeiro', id: b.id, pv: b.pin_hash.slice(0, 12) }, segredo),
+    };
   });
 
   // ----- área do barbeiro -----
@@ -281,7 +296,11 @@ function criarApp(opcoes = {}) {
   rota('GET', '/api/admin/atendimentos', 'admin', ({ query }) => {
     const periodo = lerPeriodo(query);
     const barbeiroId = query.get('barbeiro_id') ? validarId(query.get('barbeiro_id')) : undefined;
-    return { periodo, atendimentos: db.listarAtendimentos({ ...periodo, barbeiroId }).map(atendimentoPublico) };
+    return {
+      periodo,
+      hoje: hoje(),
+      atendimentos: db.listarAtendimentos({ ...periodo, barbeiroId }).map(atendimentoPublico),
+    };
   });
 
   rota('POST', '/api/admin/atendimentos', 'admin', ({ corpo }) => {

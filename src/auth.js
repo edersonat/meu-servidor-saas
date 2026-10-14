@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const VALIDADE_TOKEN_MS = 12 * 60 * 60 * 1000; // um turno
-const MAX_TENTATIVAS = 8;
+const MAX_TENTATIVAS_IP = 8;
+const MAX_TENTATIVAS_CONTA = 20;
 const JANELA_BLOQUEIO_MS = 15 * 60 * 1000;
 
 function hashPin(pin) {
@@ -64,8 +65,8 @@ function carregarSegredo(dataDir) {
   }
 }
 
-/** Trava o login por IP depois de muitas tentativas erradas (PIN é curto). */
-function criarLimitadorLogin() {
+/** Trava o login depois de muitas tentativas erradas numa mesma chave (IP ou conta), já que o PIN é curto. */
+function criarLimitadorLogin(maxTentativas) {
   const tentativas = new Map();
   return {
     bloqueado(ip) {
@@ -75,7 +76,7 @@ function criarLimitadorLogin() {
         tentativas.delete(ip);
         return false;
       }
-      return t.falhas >= MAX_TENTATIVAS;
+      return t.falhas >= maxTentativas;
     },
     falhou(ip) {
       const t = tentativas.get(ip);
@@ -89,5 +90,7 @@ function criarLimitadorLogin() {
 }
 
 module.exports = {
+  MAX_TENTATIVAS_IP,
+  MAX_TENTATIVAS_CONTA,
   hashPin, conferirPin, compararSeguro, criarToken, lerToken, carregarSegredo, criarLimitadorLogin,
 };
