@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111113">
+  <title>Caixa da Barbearia</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+  <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+  <main class="login">
+    <div class="marca">
+      <div class="logo" aria-hidden="true">✂</div>
+      <h1 id="nome-barbearia">Caixa da Barbearia</h1>
+      <p>Entre pra lançar seus cortes ou ver o painel.</p>
+    </div>
+
+    <div class="abas" role="tablist">
+      <button class="aba" role="tab" aria-selected="true" data-alvo="form-barbeiro">Sou barbeiro</button>
+      <button class="aba" role="tab" aria-selected="false" data-alvo="form-admin">Sou o dono</button>
+    </div>
+
+    <form id="form-barbeiro" class="card" autocomplete="off">
+      <label>Seu nome
+        <select name="barbeiro_id" required></select>
+      </label>
+      <label>PIN
+        <input name="pin" type="password" inputmode="numeric" pattern="\d{4,6}" maxlength="6" required>
+      </label>
+      <button class="btn primario largo">Entrar</button>
+      <p class="mudo" id="sem-barbeiros" hidden>Nenhum barbeiro cadastrado ainda. O dono cadastra pelo painel.</p>
+    </form>
+
+    <form id="form-admin" class="card" hidden autocomplete="off">
+      <label>PIN do dono
+        <input name="pin" type="password" inputmode="numeric" maxlength="12" required>
+      </label>
+      <button class="btn primario largo">Abrir painel</button>
+    </form>
+
+    <p class="erro" id="erro" role="alert" style="margin-top:14px;text-align:center"></p>
+  </main>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>

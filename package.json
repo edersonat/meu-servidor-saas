@@ -1,0 +1,16 @@
+{
+  "name": "caixa-barbearia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de caixa para barbearia: lançamento de cortes por barbeiro e painel do dono.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server.js",
+    "dev": "node --watch --no-warnings=ExperimentalWarning server.js",
+    "test": "node --no-warnings=ExperimentalWarning --test"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "license": "UNLICENSED"
+}

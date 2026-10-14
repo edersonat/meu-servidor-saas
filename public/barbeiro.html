@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111113">
+  <title>Meu caixa</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+  <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="container">
+      <div class="logo" aria-hidden="true">✂</div>
+      <div class="titulo">
+        <h1 id="ola">Olá!</h1>
+        <p id="comissao-info">&nbsp;</p>
+      </div>
+      <button class="btn fantasma pequeno" id="sair">Sair</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <form class="card" id="form-lancar">
+      <div class="card-cabecalho"><h2>Lançar atendimento</h2></div>
+
+      <h3 style="margin-bottom:8px">Serviço</h3>
+      <div class="chips servicos" id="servicos"></div>
+
+      <div class="form-linha" style="margin-top:14px">
+        <label id="campo-outro" hidden>Qual serviço?
+          <input name="servico_outro" maxlength="60" placeholder="Ex.: Luzes">
+        </label>
+        <label>Valor
+          <span class="campo-dinheiro"><input name="valor" inputmode="decimal" required placeholder="0,00"></span>
+        </label>
+      </div>
+
+      <h3 style="margin:14px 0 8px">Pagamento</h3>
+      <div class="chips" id="pagamentos"></div>
+
+      <p class="mudo" id="previa-ganho" style="margin-top:14px">&nbsp;</p>
+      <button class="btn primario largo" style="margin-top:10px">Lançar</button>
+    </form>
+
+    <section class="secao" style="margin-top:24px">
+      <div class="filtro-periodo" id="periodos">
+        <button class="chip" data-valor="hoje" aria-pressed="true">Hoje</button>
+        <button class="chip" data-valor="ontem" aria-pressed="false">Ontem</button>
+        <button class="chip" data-valor="7d" aria-pressed="false">7 dias</button>
+        <button class="chip" data-valor="mes" aria-pressed="false">Este mês</button>
+        <span class="periodo-texto" id="periodo-texto"></span>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card">
+        <div class="card-cabecalho">
+          <h2>Meus lançamentos</h2>
+          <span class="mudo" id="qtd-lancamentos"></span>
+        </div>
+        <ul class="lista" id="lista"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/barbeiro.js"></script>
+</body>
+</html>
