@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111113">
+  <title>Painel do dono</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+  <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="container">
+      <div class="logo" aria-hidden="true">✂</div>
+      <div class="titulo">
+        <h1>Painel do dono</h1>
+        <p id="nome-barbearia">&nbsp;</p>
+      </div>
+      <button class="btn fantasma pequeno" id="sair">Sair</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="abas" role="tablist">
+      <button class="aba" role="tab" aria-selected="true" data-aba="visao">Visão geral</button>
+      <button class="aba" role="tab" aria-selected="false" data-aba="atendimentos">Atendimentos</button>
+      <button class="aba" role="tab" aria-selected="false" data-aba="barbeiros">Barbeiros</button>
+    </div>
+
+    <div class="filtro-periodo" id="filtro-periodo">
+      <div class="chips" id="periodos">
+        <button class="chip" data-valor="hoje" aria-pressed="true">Hoje</button>
+        <button class="chip" data-valor="ontem" aria-pressed="false">Ontem</button>
+        <button class="chip" data-valor="7d" aria-pressed="false">7 dias</button>
+        <button class="chip" data-valor="mes" aria-pressed="false">Este mês</button>
+        <button class="chip" data-valor="30d" aria-pressed="false">30 dias</button>
+        <button class="chip" data-valor="custom" aria-pressed="false">Escolher…</button>
+      </div>
+      <div class="datas" id="datas-custom" hidden>
+        <input type="date" id="data-inicio" aria-label="Data inicial">
+        <span class="mudo">até</span>
+        <input type="date" id="data-fim" aria-label="Data final">
+      </div>
+      <span class="periodo-texto" id="periodo-texto"></span>
+    </div>
+
+    <!-- ========== VISÃO GERAL ========== -->
+    <section id="aba-visao">
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card">
+        <div class="card-cabecalho"><h2>Desempenho por barbeiro</h2></div>
+        <div class="tabela-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Barbeiro</th>
+                <th class="num">Comissão</th>
+                <th class="num">Atend.</th>
+                <th class="num">Faturado</th>
+                <th class="num">Ticket médio</th>
+                <th class="num">Ganho do barbeiro</th>
+                <th class="num">Fica p/ casa</th>
+                <th class="num">% do total</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-barbeiros"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="card-grafico">
+        <div class="card-cabecalho"><h2>Faturamento por dia</h2></div>
+        <div id="grafico"></div>
+      </div>
+
+      <div class="grade grade-2" style="margin-top:16px">
+        <div class="card">
+          <div class="card-cabecalho"><h2>Formas de pagamento</h2></div>
+          <div id="pagamentos"></div>
+        </div>
+        <div class="card">
+          <div class="card-cabecalho"><h2>Serviços</h2></div>
+          <div id="servicos"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== ATENDIMENTOS ========== -->
+    <section id="aba-atendimentos" hidden>
+      <form class="card" id="form-lancar">
+        <div class="card-cabecalho"><h2>Lançar pelo caixa</h2></div>
+        <div class="form-linha">
+          <label>Barbeiro <select name="barbeiro_id" required></select></label>
+          <label>Serviço <input name="servico" list="lista-servicos" maxlength="60" required placeholder="Corte"></label>
+          <label>Valor <span class="campo-dinheiro"><input name="valor" inputmode="decimal" required placeholder="0,00"></span></label>
+          <label>Pagamento <select name="forma_pagamento" required></select></label>
+          <button class="btn primario">Lançar</button>
+        </div>
+        <datalist id="lista-servicos"></datalist>
+      </form>
+
+      <div class="card">
+        <div class="card-cabecalho">
+          <h2>Lançamentos</h2>
+          <label style="min-width:200px">
+            <select id="filtro-barbeiro" aria-label="Filtrar por barbeiro"></select>
+          </label>
+        </div>
+        <div class="tabela-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Hora</th><th>Barbeiro</th><th>Serviço</th><th>Pagamento</th>
+                <th class="num">Valor</th><th class="num">Comissão</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-atendimentos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== BARBEIROS ========== -->
+    <section id="aba-barbeiros" hidden>
+      <form class="card" id="form-barbeiro" autocomplete="off">
+        <div class="card-cabecalho"><h2>Cadastrar barbeiro</h2></div>
+        <div class="form-linha">
+          <label>Nome <input name="nome" required minlength="2" maxlength="60" placeholder="Ex.: João Silva"></label>
+          <label>Comissão (%) <input name="comissao" type="number" min="0" max="100" step="0.5" value="50" required></label>
+          <label>PIN de acesso <input name="pin" inputmode="numeric" pattern="\d{4,6}" maxlength="6" required placeholder="4 a 6 números"></label>
+          <button class="btn primario">Cadastrar</button>
+        </div>
+      </form>
+
+      <div class="card">
+        <div class="card-cabecalho"><h2>Equipe</h2><span class="mudo" id="qtd-barbeiros"></span></div>
+        <div class="tabela-wrap">
+          <table>
+            <thead>
+              <tr><th>Nome</th><th class="num">Comissão</th><th>Desde</th><th></th></tr>
+            </thead>
+            <tbody id="tabela-equipe"></tbody>
+          </table>
+        </div>
+        <p class="mudo" style="font-size:.82rem;margin-top:12px">
+          Ao excluir um barbeiro que já tem lançamentos, ele some da equipe e perde o acesso,
+          mas os atendimentos dele continuam nos relatórios.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dialogo-editar">
+    <form method="dialog" id="form-editar">
+      <h2>Editar barbeiro</h2>
+      <label>Nome <input name="nome" required minlength="2" maxlength="60"></label>
+      <label>Comissão (%) <input name="comissao" type="number" min="0" max="100" step="0.5" required></label>
+      <label>Novo PIN <input name="pin" inputmode="numeric" pattern="\d{4,6}" maxlength="6" placeholder="Deixe vazio pra manter"></label>
+      <p class="mudo" style="font-size:.82rem">A nova comissão vale só para os próximos lançamentos.</p>
+      <div class="acoes">
+        <button class="btn fantasma" value="cancelar" formnovalidate>Cancelar</button>
+        <button class="btn primario" value="salvar">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/js/comum.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
